@@ -1,0 +1,19 @@
+{
+  "name": "personal-finance-tracker",
+  "version": "1.0.0",
+  "description": "Modern personal finance dashboard with strictly functional Array reduce & filter calculations and localStorage persistence",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/calculations.test.js"
+  },
+  "keywords": [
+    "finance",
+    "tracker",
+    "budget",
+    "expense-tracker",
+    "vanilla-js"
+  ],
+  "author": "",
+  "license": "MIT"
+}
