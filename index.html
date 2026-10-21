@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Finance Tracker | Functional Income & Expense Ledger</title>
+  <meta name="description" content="A modern, high-precision personal finance tracker that computes running totals strictly with functional JavaScript reduce and filter arrays, persisting data in localStorage.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-logo-badge" aria-hidden="true">💎</div>
+        <div>
+          <h1 class="brand-title">Personal Finance Tracker</h1>
+          <p class="brand-subtitle">Strictly functional ledger powered by Array.reduce & filter</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btnRestoreDemo" class="btn btn-secondary" title="Restore sample demonstration dataset">
+          <span class="btn-icon">↺</span> Restore Demo Data
+        </button>
+        <button id="btnExportData" class="btn btn-secondary" title="Export transactions as JSON">
+          <span class="btn-icon">📥</span> Export JSON
+        </button>
+        <button id="btnImportTrigger" class="btn btn-secondary" title="Import transactions from JSON">
+          <span class="btn-icon">📤</span> Import JSON
+        </button>
+        <input type="file" id="fileImportInput" accept=".json" style="display: none;" aria-label="Import JSON file">
+        <button id="btnClearAll" class="btn btn-danger" title="Clear all recorded transactions">
+          <span class="btn-icon">🗑️</span> Clear All
+        </button>
+      </div>
+    </header>
+
+    <!-- Overview Stat Cards Row -->
+    <section class="stats-grid" aria-label="Financial summary overview">
+      <!-- Net Balance Card -->
+      <div id="cardNetBalance" class="stat-card card-balance">
+        <div class="stat-card-header">
+          <span class="stat-title">Net Balance</span>
+          <div class="stat-icon-wrapper">⚖️</div>
+        </div>
+        <div id="statNetBalance" class="stat-value">$0.00</div>
+        <div class="stat-subtext">Cumulative across all transactions</div>
+      </div>
+
+      <!-- Total Income Card -->
+      <div id="cardTotalIncome" class="stat-card card-income">
+        <div class="stat-card-header">
+          <span class="stat-title">Total Income</span>
+          <div class="stat-icon-wrapper">📈</div>
+        </div>
+        <div id="statTotalIncome" class="stat-value">$0.00</div>
+        <div class="stat-subtext">All earnings & revenue streams</div>
+      </div>
+
+      <!-- Total Expenses Card -->
+      <div id="cardTotalExpenses" class="stat-card card-expenses">
+        <div class="stat-card-header">
+          <span class="stat-title">Total Expenses</span>
+          <div class="stat-icon-wrapper">📉</div>
+        </div>
+        <div id="statTotalExpenses" class="stat-value">$0.00</div>
+        <div class="stat-subtext">All debits & spending</div>
+      </div>
+
+      <!-- Savings Rate Card -->
+      <div id="cardSavingsRate" class="stat-card card-savings">
+        <div class="stat-card-header">
+          <span class="stat-title">Savings Rate</span>
+          <div class="stat-icon-wrapper">🎯</div>
+        </div>
+        <div id="statSavingsRate" class="stat-value">0%</div>
+        <div class="stat-subtext">Net balance retained from income</div>
+      </div>
+    </section>
+
+    <!-- Main Two-Column Dashboard -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: Add Transaction & Category Breakdown -->
+      <aside class="sidebar-column">
+        
+        <!-- Transaction Input Form Card -->
+        <section class="card" aria-labelledby="formHeading">
+          <div class="card-header">
+            <h2 id="formHeading" class="card-title"><span>➕</span> Record Transaction</h2>
+            <span class="card-subtitle">Instant calculation</span>
+          </div>
+
+          <form id="transactionForm" novalidate>
+            <!-- Transaction Type Toggle -->
+            <div class="type-segmented-control" role="radiogroup" aria-label="Transaction Type">
+              <input type="radio" id="typeExpense" name="transactionType" value="expense" checked>
+              <label for="typeExpense"><span>🔴</span> Expense</label>
+
+              <input type="radio" id="typeIncome" name="transactionType" value="income">
+              <label for="typeIncome"><span>🟢</span> Income</label>
+            </div>
+
+            <!-- Description Input -->
+            <div class="form-group">
+              <label for="transactionDescription" class="form-label">Description / Memo</label>
+              <input 
+                type="text" 
+                id="transactionDescription" 
+                class="form-input" 
+                placeholder="e.g. Grocery run, Salary payment" 
+                required 
+                autocomplete="off"
+              >
+            </div>
+
+            <!-- Amount Input -->
+            <div class="form-group">
+              <label for="transactionAmount" class="form-label">Amount ($ USD)</label>
+              <div class="input-with-currency">
+                <span aria-hidden="true">$</span>
+                <input 
+                  type="number" 
+                  id="transactionAmount" 
+                  class="form-input" 
+                  placeholder="0.00" 
+                  step="0.01" 
+                  min="0.01" 
+                  required
+                >
+              </div>
+            </div>
+
+            <!-- Category Select -->
+            <div class="form-group">
+              <label for="transactionCategory" class="form-label">Category</label>
+              <select id="transactionCategory" class="form-select"></select>
+            </div>
+
+            <!-- Date Input -->
+            <div class="form-group">
+              <label for="transactionDate" class="form-label">Date</label>
+              <input type="date" id="transactionDate" class="form-input" required>
+            </div>
+
+            <button type="submit" id="btnSubmitTransaction" class="btn btn-primary btn-submit-tx">
+              <span>Save Transaction</span>
+            </button>
+          </form>
+        </section>
+
+        <!-- Category Spending Progress Card -->
+        <section class="card" aria-labelledby="breakdownHeading">
+          <div class="card-header">
+            <h2 id="breakdownHeading" class="card-title"><span>📊</span> Breakdown</h2>
+            <div class="breakdown-tabs" role="tablist" aria-label="Category breakdown tabs">
+              <button id="tabBreakdownExpense" class="tab-btn tab-active" type="button" role="tab" aria-selected="true">Expenses</button>
+              <button id="tabBreakdownIncome" class="tab-btn" type="button" role="tab" aria-selected="false">Income</button>
+            </div>
+          </div>
+          <div id="categoryBreakdownContainer" class="category-breakdown-list"></div>
+        </section>
+
+      </aside>
+
+      <!-- Right Column: Filters and Running Balance Ledger -->
+      <section class="ledger-column">
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title"><span>📑</span> Transaction Ledger & Running Totals</h2>
+              <span id="ledgerCount" class="card-subtitle">0 transactions</span>
+            </div>
+          </div>
+
+          <!-- Filter / Search Toolbar -->
+          <div class="filter-toolbar" role="search" aria-label="Transaction filters">
+            <div class="filter-item">
+              <label for="filterSearch">Search</label>
+              <input type="text" id="filterSearch" class="form-input" placeholder="Search memo, category, amount...">
+            </div>
+
+            <div class="filter-item">
+              <label for="filterType">Type</label>
+              <select id="filterType" class="form-select">
+                <option value="all">All Types</option>
+                <option value="income">Income Only</option>
+                <option value="expense">Expenses Only</option>
+              </select>
+            </div>
+
+            <div class="filter-item">
+              <label for="filterCategory">Category</label>
+              <select id="filterCategory" class="form-select">
+                <option value="all">All Categories</option>
+              </select>
+            </div>
+
+            <div class="filter-item">
+              <label for="filterFromDate">From Date</label>
+              <input type="date" id="filterFromDate" class="form-input">
+            </div>
+
+            <div class="filter-item" style="justify-content: flex-end;">
+              <button id="btnResetFilters" type="button" class="btn btn-secondary" title="Reset all active filters">
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          <!-- Transaction Table with Running Balance Column -->
+          <div class="table-container">
+            <table class="ledger-table" aria-label="Transaction Ledger Table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Description</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Running Balance</th>
+                  <th scope="col" style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="ledgerTableBody">
+                <!-- Dynamically populated via js/ui.js -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Clear All Confirmation Modal -->
+  <div id="confirmModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="modal-icon">⚠️</div>
+      <h3 id="modalTitle" class="modal-title">Clear All Transactions?</h3>
+      <p class="modal-description">This action will delete all transaction records and reset your running balance. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button id="modalCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="modalConfirmBtn" class="btn btn-danger" type="button">Yes, Clear All</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
