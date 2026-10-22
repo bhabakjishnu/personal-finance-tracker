@@ -34,16 +34,28 @@ export const CATEGORIES = {
  * @returns {{id: string, label: string, icon: string, color: string}} Category metadata or fallback.
  */
 export const getCategoryMeta = (categoryId, type) => {
+  const searchId = String(categoryId || '').trim().toLowerCase();
+
+  // If a type hint is provided and matches a known category list, prioritize it
+  if (type && CATEGORIES[type]) {
+    const primaryFound = CATEGORIES[type].find(
+      (cat) => cat.id.toLowerCase() === searchId
+    );
+    if (primaryFound) return primaryFound;
+  }
+
+  // Search remaining categories across both types
   const allCategories = [...CATEGORIES.income, ...CATEGORIES.expense];
   const found = allCategories.find(
-    (cat) => cat.id.toLowerCase() === String(categoryId).toLowerCase()
+    (cat) => cat.id.toLowerCase() === searchId
   );
 
   if (found) return found;
 
+  const fallbackLabel = categoryId ? String(categoryId).trim() : 'Uncategorized';
   return {
-    id: categoryId || 'Uncategorized',
-    label: categoryId || 'Uncategorized',
+    id: fallbackLabel,
+    label: fallbackLabel,
     icon: type === 'income' ? '💰' : '🏷️',
     color: '#94a3b8'
   };

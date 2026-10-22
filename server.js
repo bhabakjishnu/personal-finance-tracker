@@ -23,26 +23,56 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
-  const urlPath = req.url.split('?')[0];
-  let relativePath = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
-  const filePath = path.join(__dirname, relativePath);
+const ROOT_DIR = path.resolve(__dirname);
 
-  // Prevent path traversal
-  if (!filePath.startsWith(__dirname)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
+/**
+ * Creates and configures the HTTP server instance.
+ */
+export const server = http.createServer((req, res) => {
+  const urlPath = req.url.split('?')[0];
+
+  let decodedPath;
+  try {
+    decodedPath = decodeURIComponent(urlPath);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('400 Bad Request: Malformed URI sequence');
+    return;
+  }
+
+  // Normalize path and remove leading slashes
+  const normalizedRelative = path.normalize(decodedPath).replace(/^(\.\.[\/\\])+/, '');
+  const relativePath = (normalizedRelative === '/' || normalizedRelative === '.' || normalizedRelative === '')
+    ? 'index.html'
+    : normalizedRelative.replace(/^[/\\]+/, '');
+
+  const filePath = path.resolve(ROOT_DIR, relativePath);
+
+  // Strict path traversal defense: ensure resolved file is inside ROOT_DIR
+  if (filePath !== ROOT_DIR && !filePath.startsWith(ROOT_DIR + path.sep)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('403 Forbidden');
     return;
   }
 
   fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
+    if (err) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('404 Not Found');
       return;
     }
 
-    const ext = path.extname(filePath).toLowerCase();
+    let actualFilePath = filePath;
+    if (stats.isDirectory()) {
+      actualFilePath = path.join(filePath, 'index.html');
+      if (!fs.existsSync(actualFilePath)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('404 Not Found');
+        return;
+      }
+    }
+
+    const ext = path.extname(actualFilePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
     res.writeHead(200, {
@@ -50,11 +80,31 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-cache'
     });
 
-    const stream = fs.createReadStream(filePath);
+    const stream = fs.createReadStream(actualFilePath);
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+      }
+      res.end('500 Internal Server Error');
+    });
     stream.pipe(res);
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Finance Tracker server is running at http://localhost:${PORT}`);
-});
+// Start listening if run directly
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
+  server.listen(PORT, () => {
+    console.log(`Finance Tracker server is running at http://localhost:${PORT}`);
+  });
+
+  const handleShutdown = () => {
+    console.log('\nGracefully shutting down Finance Tracker server...');
+    server.close(() => {
+      console.log('Server closed.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', handleShutdown);
+  process.on('SIGTERM', handleShutdown);
+}

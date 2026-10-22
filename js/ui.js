@@ -53,6 +53,23 @@ export const formatDate = (dateString) => {
 };
 
 /**
+ * Sanitizes an untrusted string for secure insertion into HTML contexts,
+ * escaping &, <, >, ", and ' characters to prevent Cross-Site Scripting (XSS).
+ *
+ * @param {string|number|null|undefined} str - The raw input to escape.
+ * @returns {string} The HTML-escaped string.
+ */
+export const escapeHtml = (str) => {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+/**
  * Renders the top overview stat cards (Net Balance, Income, Expenses, Savings Rate).
  *
  * @param {Array<Object>} transactions - Unfiltered global transaction collection.
@@ -114,12 +131,14 @@ export const renderCategoryBreakdown = (transactions, type = 'expense') => {
   const html = categories
     .map((item) => {
       const meta = getCategoryMeta(item.category, type);
+      const safeLabel = escapeHtml(meta.label);
+      const safeIcon = escapeHtml(meta.icon);
       return `
         <div class="category-row">
           <div class="category-info">
             <div class="category-name-wrapper">
-              <span class="category-icon" style="background-color: ${meta.color}20; color: ${meta.color}">${meta.icon}</span>
-              <span class="category-label">${meta.label}</span>
+              <span class="category-icon" style="background-color: ${meta.color}20; color: ${meta.color}">${safeIcon}</span>
+              <span class="category-label">${safeLabel}</span>
             </div>
             <div class="category-numbers">
               <span class="category-amount">${formatCurrency(item.amount)}</span>
@@ -193,17 +212,21 @@ export const renderLedgerTable = (allTransactions, filters, onDeleteCallback) =>
       const amountPrefix = isIncome ? '+' : '-';
       const amountClass = isIncome ? 'tx-income' : 'tx-expense';
       const balanceClass = tx.runningBalance >= 0 ? 'balance-positive' : 'balance-negative';
+      const safeDesc = escapeHtml(tx.description);
+      const safeId = escapeHtml(tx.id);
+      const safeLabel = escapeHtml(meta.label);
+      const safeIcon = escapeHtml(meta.icon);
 
       return `
-        <tr class="ledger-row" data-id="${tx.id}">
+        <tr class="ledger-row" data-id="${safeId}">
           <td class="col-date">${formatDate(tx.date)}</td>
           <td class="col-desc">
-            <div class="tx-description" title="${tx.description}">${tx.description}</div>
+            <div class="tx-description" title="${safeDesc}">${safeDesc}</div>
           </td>
           <td class="col-category">
             <span class="category-pill" style="border-color: ${meta.color}40; background-color: ${meta.color}15;">
-              <span class="pill-icon">${meta.icon}</span>
-              <span class="pill-label">${meta.label}</span>
+              <span class="pill-icon">${safeIcon}</span>
+              <span class="pill-label">${safeLabel}</span>
             </span>
           </td>
           <td class="col-type">
@@ -221,9 +244,9 @@ export const renderLedgerTable = (allTransactions, filters, onDeleteCallback) =>
             <button 
               type="button" 
               class="btn-delete-row" 
-              data-id="${tx.id}" 
+              data-id="${safeId}" 
               title="Delete transaction"
-              aria-label="Delete transaction ${tx.description}"
+              aria-label="Delete transaction ${safeDesc}"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"></polyline>
@@ -259,7 +282,7 @@ export const updateCategoryDropdown = (selectedType = 'expense') => {
 
   const categories = CATEGORIES[selectedType] || [];
   select.innerHTML = categories
-    .map((cat) => `<option value="${cat.id}">${cat.icon} ${cat.label}</option>`)
+    .map((cat) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.icon)} ${escapeHtml(cat.label)}</option>`)
     .join('');
 };
 
@@ -276,7 +299,7 @@ export const populateFilterCategoryDropdown = () => {
   allCategories.forEach((c) => uniqueMap.set(c.id, c));
 
   const options = Array.from(uniqueMap.values())
-    .map((cat) => `<option value="${cat.id}">${cat.icon} ${cat.label}</option>`)
+    .map((cat) => `<option value="${escapeHtml(cat.id)}">${escapeHtml(cat.icon)} ${escapeHtml(cat.label)}</option>`)
     .join('');
 
   filterSelect.innerHTML = `<option value="all">All Categories</option>${options}`;
@@ -303,7 +326,7 @@ export const showToast = (message, type = 'success') => {
 
   toast.innerHTML = `
     <span class="toast-icon">${icons[type] || 'ℹ'}</span>
-    <span class="toast-message">${message}</span>
+    <span class="toast-message">${escapeHtml(message)}</span>
   `;
 
   container.appendChild(toast);
