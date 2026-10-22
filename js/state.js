@@ -78,7 +78,7 @@ export const DEFAULT_SEED_TRANSACTIONS = [
   }
 ];
 
-class StateManager {
+export class StateManager {
   /**
    * Initializes the state manager instance and loads transactions from localStorage.
    */
@@ -129,15 +129,17 @@ class StateManager {
         return [];
       }
 
-      return parsed.map((item) => ({
-        id: String(item.id || `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
-        description: String(item.description || 'Untitled Transaction'),
-        amount: roundToCents(Math.abs(Number(item.amount) || 0)),
-        type: item.type === 'income' ? 'income' : 'expense',
-        category: String(item.category || 'Other'),
-        date: String(item.date || new Date().toISOString().split('T')[0]),
-        createdAt: Number(item.createdAt) || Date.now()
-      }));
+      return parsed
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => ({
+          id: String(item.id || `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`),
+          description: String(item.description || 'Untitled Transaction'),
+          amount: roundToCents(Math.abs(Number(item.amount) || 0)),
+          type: item.type === 'income' ? 'income' : 'expense',
+          category: String(item.category || 'Other'),
+          date: String(item.date || new Date().toISOString().split('T')[0]),
+          createdAt: Number(item.createdAt) || Date.now()
+        }));
     } catch (err) {
       console.warn('Failed to parse transactions from localStorage; utilizing fallback:', err);
       return [...DEFAULT_SEED_TRANSACTIONS];
@@ -203,17 +205,21 @@ class StateManager {
    * @returns {Object} Newly created transaction object.
    */
   addTransaction(txData) {
-    const amount = roundToCents(Math.abs(Number(txData.amount)));
-    if (!amount || amount <= 0) {
+    if (!txData || typeof txData !== 'object') {
+      throw new Error('Transaction data must be a valid object.');
+    }
+    const rawAmount = Number(txData.amount);
+    if (isNaN(rawAmount) || !Number.isFinite(rawAmount) || rawAmount <= 0) {
       throw new Error('Transaction amount must be a positive number greater than 0.');
     }
+    const amount = roundToCents(rawAmount);
 
     const newTx = {
       id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       description: String(txData.description || '').trim() || 'Untitled',
       amount,
       type: txData.type === 'income' ? 'income' : 'expense',
-      category: String(txData.category || 'Other').trim(),
+      category: String(txData.category || 'Other').trim() || 'Other',
       date: txData.date || new Date().toISOString().split('T')[0],
       createdAt: Date.now()
     };
@@ -309,16 +315,20 @@ class StateManager {
     }
 
     const validated = parsed.map((item, idx) => {
-      const amount = roundToCents(Math.abs(Number(item.amount)));
-      if (!amount || amount <= 0) {
+      if (!item || typeof item !== 'object') {
+        throw new Error(`Record at index ${idx} is not a valid transaction object.`);
+      }
+      const rawAmount = Number(item.amount);
+      if (isNaN(rawAmount) || !Number.isFinite(rawAmount) || rawAmount <= 0) {
         throw new Error(`Record at index ${idx} contains invalid amount.`);
       }
+      const amount = roundToCents(rawAmount);
       return {
         id: String(item.id || `tx_${Date.now()}_${idx}`),
-        description: String(item.description || 'Imported Transaction'),
+        description: String(item.description || 'Imported Transaction').trim() || 'Imported Transaction',
         amount,
         type: item.type === 'income' ? 'income' : 'expense',
-        category: String(item.category || 'Other'),
+        category: String(item.category || 'Other').trim() || 'Other',
         date: String(item.date || new Date().toISOString().split('T')[0]),
         createdAt: Number(item.createdAt) || Date.now()
       };

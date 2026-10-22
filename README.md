@@ -28,16 +28,23 @@ A sleek, responsive, and high-precision personal finance tracking web applicatio
 personal-finance-tracker/
 ├── index.html                   # Semantic HTML5 dashboard layout & accessible controls
 ├── styles.css                   # Glassmorphic dark design system & tokens
+├── server.js                    # Zero-dependency local dev server with traversal security
+├── package.json                 # Project configuration & npm test/start scripts
+├── .editorconfig                # Universal indentation and whitespace formatting rules
+├── .gitattributes               # Line ending normalization & binary handling
+├── .gitignore                   # Safe Git ignore pattern
+├── README.md                    # Project documentation & reference
 ├── js/
 │   ├── app.js                   # Application bootstrap, DOM listener dispatchers
 │   ├── state.js                 # State manager, pub/sub dispatcher, localStorage sync
 │   ├── calculations.js          # Pure calculation engine (strictly filter & reduce)
 │   ├── categories.js            # Standard category definitions, colors, and icons
-│   └── ui.js                    # View rendering (stat cards, ledger table, progress bars, toasts)
-├── tests/
-│   └── calculations.test.js     # Automated unit test suite (Node.js test runner)
-├── package.json                 # Project configuration & npm test script
-└── .gitignore                   # Safe Git ignore pattern
+│   └── ui.js                    # View rendering, XSS sanitization, formatters & toasts
+└── tests/
+    ├── calculations.test.js     # Calculations engine unit tests (filter & reduce)
+    ├── state.test.js            # StateManager CRUD, pub/sub & import/export tests
+    ├── categories.test.js       # Category metadata resolution & fallback tests
+    └── ui.test.js               # UI formatting and HTML sanitization unit tests
 ```
 
 ---
@@ -86,7 +93,7 @@ export const calculateRunningBalances = (chronologicalTransactions) =>
 
 ## 🧪 Running Automated Unit Tests
 
-Execute the unit tests using Node's native test runner:
+Execute the full unit test suite using Node's native test runner:
 
 ```bash
 npm test
@@ -96,7 +103,14 @@ npm test
 
 ## 🚀 Running the Web Application Locally
 
-You can launch a local static server using Python, Node `serve`, or `npx http-server`:
+Launch the zero-dependency local server using npm:
+
+```bash
+npm start
+```
+Then visit `http://localhost:8080` in your web browser.
+
+Alternatively, you can launch using Python or npx:
 
 ```bash
 # Using Python
@@ -105,5 +119,3 @@ python -m http.server 3000
 # Or using npx
 npx serve .
 ```
-
-Then visit `http://localhost:3000` in your web browser.

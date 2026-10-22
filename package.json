@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/calculations.test.js"
+    "test": "node --test"
   },
   "keywords": [
     "finance",
